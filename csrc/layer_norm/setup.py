@@ -53,7 +53,7 @@ def raise_if_cuda_home_none(global_option: str) -> None:
 def append_nvcc_threads(nvcc_extra_args):
     _, bare_metal_version = get_cuda_bare_metal_version(CUDA_HOME)
     if bare_metal_version >= Version("11.2"):
-        return nvcc_extra_args + ["--threads", "4"]
+        return nvcc_extra_args + ["--threads", "0"]
     return nvcc_extra_args
 
 
@@ -110,10 +110,16 @@ if bare_metal_version >= Version("11.8"):
     cc_flag.append("-gencode")
     cc_flag.append("arch=compute_90,code=sm_90")
 
+def filter_out_bwd_files(gen):
+    for filename in gen:
+        if 'bwd' in filename:
+            continue
+        yield filename
+
 ext_modules.append(
     CUDAExtension(
         name="dropout_layer_norm",
-        sources=[
+        sources=list(filter_out_bwd_files([
             "ln_api.cpp",
             "ln_fwd_256.cu",
             "ln_bwd_256.cu",
@@ -171,7 +177,7 @@ ext_modules.append(
             "ln_parallel_bwd_7168.cu",
             "ln_parallel_fwd_8192.cu",
             "ln_parallel_bwd_8192.cu",
-        ],
+        ])),
         extra_compile_args={
             "cxx": ["-O3"] + generator_flag,
             "nvcc": append_nvcc_threads(
